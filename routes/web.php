@@ -35,6 +35,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // المستندات
     Route::resource('documents', DocumentController::class)->except(['index']);
     Route::post('/documents/{document}/participants', [DocumentController::class, 'addParticipant'])->name('documents.participants.store');
+    Route::delete('/documents/participants/{participant}', [DocumentController::class, 'deleteParticipant'])->name('documents.participants.destroy');
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
     Route::patch('/documents/{document}/fields', [DocumentController::class, 'saveFields'])->name('documents.fields.update');
     Route::post('/documents/{document}/send', [DocumentController::class, 'send'])->name('documents.send');
