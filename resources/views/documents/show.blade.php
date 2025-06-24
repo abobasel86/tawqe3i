@@ -8,19 +8,30 @@
     <!-- The main component that controls everything -->
     <div class="py-12" 
          x-data="documentEditor(
-            '{{ route('documents.fields.update', $document) }}', 
-            {{ json_encode($document->fields ?? []) }}, 
-            {{ json_encode($document->participants) }}
+            '{{ route('documents.fields.update', $document) }}',
+            {{ json_encode($document->fields ?? []) }},
+            {{ json_encode($document->participants) }},
+            {{ $numPages }}
          )">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-3 gap-6" dir="rtl">
             
             <!-- Main Area: PDF Viewer with Interactive Fields Layer -->
             <div class="lg:col-span-2 bg-gray-200 relative shadow-sm sm:rounded-lg" x-ref="container">
+                <!-- Page Navigation -->
+                <div class="bg-white p-2 flex flex-wrap items-center justify-center gap-2 mb-2">
+                    <template x-for="page in numPages" :key="'nav'+page">
+                        <button @click="changePage(page)" class="px-2 py-1 rounded"
+                                :class="currentPage === page ? 'bg-blue-600 text-white' : 'bg-gray-200'">
+                            <span x-text="page"></span>
+                        </button>
+                    </template>
+                    <span class="mx-2" x-text="currentPage + ' / ' + numPages"></span>
+                </div>
                 
                 <!-- This is the interactive layer for fields -->
                 <div class="absolute top-0 left-0 w-full h-full" 
                      :class="{ 'pointer-events-none': !dragging && !resizing }">
-                    <template x-for="field in fields" :key="field.id">
+                    <template x-for="field in fields.filter(f => f.page === currentPage)" :key="field.id">
                         <div
                             class="absolute border-2 border-dashed cursor-move flex items-center justify-center text-xs font-bold text-white rounded-sm pointer-events-auto"
                             :style="`left: ${field.x}px; top: ${field.y}px; width: ${field.width}px; height: ${field.height}px; background-color: ${getParticipantColor(field.participant_id, 0.7)}; border-color: ${getParticipantColor(field.participant_id, 1)};`"
@@ -37,7 +48,7 @@
                 </div>
 
                 <!-- PDF Iframe Layer -->
-                <iframe src="data:application/pdf;base64,{{ $base64Pdf }}" width="100%" height="750px" class="relative"></iframe>
+                <iframe x-ref="pdfIframe" :src="pdfSrc + '#page=' + currentPage" width="100%" height="750px" class="relative"></iframe>
             </div>
 
             <!-- Sidebar -->
@@ -111,10 +122,13 @@
         
         <script>
             document.addEventListener('alpine:init', () => {
-                Alpine.data('documentEditor', (saveUrl, initialFields, initialParticipants) => ({
+                Alpine.data('documentEditor', (saveUrl, initialFields, initialParticipants, totalPages) => ({
                     fields: initialFields,
                     participants: initialParticipants,
                     selectedParticipantId: initialParticipants.length > 0 ? initialParticipants[0].id : null,
+                    numPages: totalPages,
+                    currentPage: 1,
+                    pdfSrc: 'data:application/pdf;base64,{{ $base64Pdf }}',
                     saving: false, dragging: false, resizing: false, activeField: null,
                     
                     init() { this.fields.forEach((field, i) => field.id = field.id || Date.now() + i); },
@@ -134,7 +148,7 @@
                     },
                     addField(type) {
                         if (this.selectedParticipantId === null) { alert('الرجاء تحديد موقّع من القائمة أولاً.'); return; }
-                        this.fields.push({ id: Date.now(), type: type, participant_id: this.selectedParticipantId, page: 1, x: 30, y: 30, width: 150, height: 50 });
+                        this.fields.push({ id: Date.now(), type: type, participant_id: this.selectedParticipantId, page: this.currentPage, x: 30, y: 30, width: 150, height: 50 });
                     },
                     startDrag(event, field) {
                         if(this.resizing) return; 
@@ -154,7 +168,7 @@
                     },
                     startResize(event, field) {
                         this.resizing = true;
-                        let initialWidth = field.width; 
+                        let initialWidth = field.width;
                         let initialHeight = field.height;
                         let initialMouseX = event.clientX; 
                         let initialMouseY = event.clientY;
@@ -166,6 +180,10 @@
                         const upHandler = () => { this.resizing = false; document.removeEventListener('mousemove', moveHandler); document.removeEventListener('mouseup', upHandler); };
                         document.addEventListener('mousemove', moveHandler);
                         document.addEventListener('mouseup', upHandler);
+                    },
+                    changePage(page) {
+                        this.currentPage = page;
+                        this.$refs.pdfIframe.src = this.pdfSrc + '#page=' + page;
                     },
                     saveFields() {
                         this.saving = true;

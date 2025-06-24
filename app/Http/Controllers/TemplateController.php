@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Template;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use setasign\Fpdi\Tcpdf\Fpdi;
 
 class TemplateController extends Controller
 {
@@ -58,9 +59,14 @@ class TemplateController extends Controller
         $fileContent = Storage::disk('private')->get($template->original_file_path);
         $base64Pdf = base64_encode($fileContent);
 
+        // Determine total pages of the template PDF
+        $pdf = new Fpdi();
+        $numPages = $pdf->setSourceFile(Storage::disk('private')->path($template->original_file_path));
+
         return view('templates.edit', [
-            'template' => $template,
+            'template'  => $template,
             'base64Pdf' => $base64Pdf,
+            'numPages'  => $numPages,
         ]);
     }
 

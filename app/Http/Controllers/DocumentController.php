@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SignatureRequestMail;
+use setasign\Fpdi\Tcpdf\Fpdi;
 
 class DocumentController extends Controller
 {
@@ -33,10 +34,15 @@ class DocumentController extends Controller
         $fileContent = \Illuminate\Support\Facades\Storage::disk('private')->get($filePath);
         $base64Pdf = base64_encode($fileContent);
 
+        // Determine the number of pages in the PDF
+        $pdf = new Fpdi();
+        $numPages = $pdf->setSourceFile(Storage::disk('private')->path($filePath));
+
         // Pass both the document and the base64 data to the view
         return view('documents.show', [
-            'document' => $document,
-            'base64Pdf' => $base64Pdf,
+            'document'   => $document,
+            'base64Pdf'  => $base64Pdf,
+            'numPages'   => $numPages,
         ]);
     }
     
