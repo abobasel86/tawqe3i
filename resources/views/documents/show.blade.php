@@ -9,10 +9,14 @@
     <div class="py-12"
          x-data="documentEditor(
             '{{ route('documents.fields.update', $document) }}',
+            '{{ route('documents.send', $document) }}',
             '{{ $base64Pdf }}',
             {{ json_encode($document->fields ?? []) }},
             {{ json_encode($document->participants) }}
          )">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 mb-4 flex justify-end" dir="rtl">
+            <button @click="sendDocument" class="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">إرسال</button>
+        </div>
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-3 gap-6" dir="rtl">
             
             <!-- Main Area: PDF Viewer with Interactive Fields Layer -->
@@ -24,7 +28,7 @@
             <div class="lg:col-span-1 space-y-6">
                  <!-- Save Button -->
                  <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-4">
-                    <button @click="saveFields" :disabled="saving" :class="saving ? 'bg-yellow-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'" class="w-full text-white font-bold py-3 px-4 rounded transition text-lg">
+                    <button @click="saveFields(true)" :disabled="saving" :class="saving ? 'bg-yellow-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'" class="w-full text-white font-bold py-3 px-4 rounded transition text-lg">
                         <span x-show="!saving">✓ حفظ أماكن الحقول</span>
                         <span x-show="saving">جاري الحفظ...</span>
                     </button>
@@ -66,14 +70,9 @@
                     </div>
                 </div>
 
-                <!-- 3. Send Panel -->
+                <!-- 3. Assign to Folder Panel -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <h3 class="text-lg font-medium mb-4">3. إرسال للتوقيع</h3>
-                    <form action="{{ route('documents.send', $document) }}" method="POST" onsubmit="return confirm('هل أنت متأكد وجاهز لإرسال المستند؟');">@csrf<div><label for="flow_type" class="block font-medium text-sm text-gray-700">اختر مسار التوقيع:</label><select name="flow_type" id="flow_type" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"><option value="parallel">متوازي</option><option value="sequential">تسلسلي</option></select></div><button type="submit" class="w-full mt-4 bg-green-600 text-white font-bold py-2 px-4 rounded hover:bg-green-700">إرسال الآن</button></form>
-                </div>
-                <!-- 4. Assign to Folder Panel -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-    <h3 class="text-lg font-medium mb-4">إسناد إلى مجلد</h3>
+    <h3 class="text-lg font-medium mb-4">3. إسناد إلى مجلد</h3>
     <form action="{{ route('documents.assignFolder', $document) }}" method="POST">
         @csrf
         <label for="folder_id" class="sr-only">اختر مجلدًا</label>
@@ -93,7 +92,7 @@
         <script src="{{ asset('libs/pdf.worker.min.js') }}"></script>
         <script>
             document.addEventListener('alpine:init', () => {
-                Alpine.data('documentEditor', (saveUrl, pdfData, initialFields, initialParticipants) => ({
+                Alpine.data('documentEditor', (saveUrl, sendUrl, pdfData, initialFields, initialParticipants) => ({
                     fields: initialFields,
                     participants: initialParticipants,
                     selectedParticipantId: initialParticipants.length > 0 ? initialParticipants[0].id : null,
@@ -101,6 +100,7 @@
                     pdfData: pdfData,
                     currentPage: 1,
                     numPages: 0,
+                    sendUrl: sendUrl,
 
                     init() {
                         this.fields.forEach((field, i) => field.id = field.id || Date.now() + i);
@@ -233,7 +233,7 @@
                         document.addEventListener('mousemove', moveHandler);
                         document.addEventListener('mouseup', upHandler);
                     },
-                    saveFields() {
+                    saveFields(sendAfter = false) {
                         this.saving = true;
                         fetch(saveUrl, {
                             method: 'PATCH',
@@ -241,8 +241,16 @@
                             body: JSON.stringify({ fields: this.fields })
                         })
                         .then(res => res.json())
-                        .then(data => { setTimeout(() => { this.saving = false; alert(data.message); }, 500); })
+                        .then(data => { setTimeout(() => { this.saving = false; alert(data.message); if (sendAfter) { this.sendDocument(); } }, 500); })
                         .catch(() => { this.saving = false; alert('حدث خطأ أثناء الحفظ.'); });
+                    },
+                    sendDocument() {
+                        fetch(this.sendUrl, {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                        })
+                        .then(() => { window.location = '{{ route('dashboard') }}'; })
+                        .catch(() => alert('حدث خطأ أثناء الإرسال.'));
                     }
                 }));
             });
