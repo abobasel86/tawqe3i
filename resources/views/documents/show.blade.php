@@ -48,7 +48,18 @@
                     <hr class="mb-4">
                     <div class="space-y-3">
                         @forelse ($document->participants as $participant)
-                            <div class="flex items-center p-2 rounded-lg" :class="{ 'bg-blue-100 ring-2 ring-blue-400': selectedParticipantId == {{ $participant->id }} }"><label class="flex items-center w-full cursor-pointer"><input type="radio" name="selected_participant" value="{{ $participant->id }}" x-model.number="selectedParticipantId" class="h-4 w-4"><span class="mr-3" style="width: 15px; height: 15px; border-radius: 50%; background-color: {{ ['#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'][$loop->index % 5] }};"></span><span>{{ $participant->name }}</span></label></div>
+                            <div class="flex items-center p-2 rounded-lg" :class="{ 'bg-blue-100 ring-2 ring-blue-400': selectedParticipantId == {{ $participant->id }} }">
+                                <label class="flex items-center flex-1 cursor-pointer">
+                                    <input type="radio" name="selected_participant" value="{{ $participant->id }}" x-model.number="selectedParticipantId" class="h-4 w-4">
+                                    <span class="mr-3" style="width: 15px; height: 15px; border-radius: 50%; background-color: {{ ['#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#8B5CF6'][$loop->index % 5] }};"></span>
+                                    <span>{{ $participant->name }}</span>
+                                </label>
+                                <form action="{{ route('documents.participants.destroy', $participant) }}" method="POST" class="ml-2" onsubmit="return confirm('هل أنت متأكد من الحذف؟');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:underline">حذف</button>
+                                </form>
+                            </div>
                         @empty
                             <p class="text-center text-gray-500">الرجاء إضافة موقّعين أولاً.</p>
                         @endforelse
@@ -236,6 +247,5 @@
                 }));
             });
         </script>
-    </x-app-layout>
-</x-app-layout>
 
+</x-app-layout>
