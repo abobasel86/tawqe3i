@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
+use App\Models\DocumentParticipant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -67,6 +68,17 @@ class DocumentController extends Controller
         $request->validate(['name' => 'required|string|max:255', 'email' => 'required|email|max:255']);
         $document->participants()->create(['name' => $request->name, 'email' => $request->email, 'token' => Str::uuid()]);
         return back()->with('success', 'تمت إضافة الموقّع بنجاح.');
+    }
+
+    /**
+     * Delete a participant from the document.
+     */
+    public function deleteParticipant(DocumentParticipant $participant)
+    {
+        $document = $participant->document;
+        if (auth()->id() !== $document->user_id) { abort(403); }
+        $participant->delete();
+        return back()->with('success', 'تم حذف الموقّع بنجاح.');
     }
 
     /**
