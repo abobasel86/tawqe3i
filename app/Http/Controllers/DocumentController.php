@@ -129,34 +129,19 @@ public function send(Request $request, Document $document)
         return back()->withErrors(['message' => 'يجب إضافة موقّع واحد على الأقل قبل الإرسال.']);
     }
 
-    // *** بداية التعديل: تحميل بيانات المستخدم المرتبطة بالمستند ***
+    // تحميل بيانات المستخدم المرتبطة بالمستند
     $document->load('user');
 
-    // Update document status and flow type
-    $document->update([
-        'status' => 'sent',
-        'flow_type' => $request->input('flow_type', 'parallel'),
-    ]);
+    // تحديث حالة المستند
+    $document->update(['status' => 'sent']);
 
-    // If sequential, set the signing order
-    if ($document->flow_type === 'sequential') {
-        foreach ($document->participants as $key => $participant) {
-            $participant->update(['signing_order' => $key + 1]);
-        }
-    }
-    
-    // --- الجزء الخاص بإرسال الإيميلات ---
-    $participantsToSendTo = [];
-    if ($document->flow_type === 'parallel') {
-        $participantsToSendTo = $document->participants;
-    } else {
-        $firstParticipant = $document->participants()->orderBy('signing_order', 'asc')->first();
-        if ($firstParticipant) {
-            $participantsToSendTo[] = $firstParticipant;
-        }
-    }
+    // إرسال الإيميلات وفق ترتيب التوقيع
+    $minOrder = $document->participants()->min('signing_order');
+    $participantsToSend = $minOrder === null
+        ? $document->participants
+        : $document->participants()->where('signing_order', $minOrder)->get();
 
-    foreach ($participantsToSendTo as $participant) {
+    foreach ($participantsToSend as $participant) {
         Mail::to($participant->email)->send(new SignatureRequestMail($document, $participant));
         $participant->update(['status' => 'sent']);
     }
